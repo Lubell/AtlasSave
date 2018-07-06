@@ -145,6 +145,9 @@ function copySrcToDestButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+
+flags = ' /F /E /Y /D';
+
 if isequal(handles.dest,0) || isequal(handles.src,0)
     warndlg('Try resetting the source and destination paths')
     return
@@ -155,12 +158,72 @@ else
         return
     elseif exist(handles.src,'dir') && exist(handles.dest,'dir')
         % both are directories and not the same
-        successfulMove = backup(handles.src,handles.dest);
+        
+        str=sprintf('Backing-up data FROM:\n%s\nTO:\n%s',handles.src,handles.dest);
+        resp=questdlg(str,'Confirm','Yes','No','Yes');
+
+        if ~strcmpi(resp,'Yes')
+            return
+        end
+        
+        handles.copySrcToDestButton.Enable = 'off';
+        handles.copySrcToDestButton.String = 'Running...';
+        guidata(hObject,handles)
+        
+        b = gcf;
+        set(b, 'pointer', 'watch')
+        drawnow;
+        
+        
+        [successfulMove,logFile] = backup(handles.src,handles.dest,0,flags,'xcopy');
+        set(b, 'pointer', 'arrow')
+        
+        
+        set(b, 'pointer', 'watch')
+        drawnow;
         successfulCheck = doubleCheckBytes(handles.src,handles.dest);
+        set(b, 'pointer', 'arrow')
+        
+        
+        handles.copySrcToDestButton.Enable = 'on';
+        handles.copySrcToDestButton.String = 'COPY!';
+        guidata(hObject,handles)
+        
+        
     elseif exist(handles.src,'dir') && ~exist(handles.dest,'dir') && handles.firstRun.Value
         % Src is a directory and dest needs to be made
-        successfulMove = backup(handles.src,handles.dest);
+        
+        str=sprintf('Backing-up data FROM:\n%s\nTO:\n%s',handles.src,handles.dest);
+        resp=questdlg(str,'Confirm','Yes','No','Yes');
+
+        if ~strcmpi(resp,'Yes')
+            return
+        end
+        
+        
+        handles.copySrcToDestButton.Enable = 'off';
+        handles.copySrcToDestButton.String = 'Running...';
+        guidata(hObject,handles)
+        
+        b = gcf;
+        set(b, 'pointer', 'watch')
+        drawnow;
+        
+        
+        [successfulMove,logFile] = backup(handles.src,handles.dest,0,flags,'xcopy');
+        set(b, 'pointer', 'arrow')
+        
+        
+        set(b, 'pointer', 'watch')
+        drawnow;
         successfulCheck = doubleCheckBytes(handles.src,handles.dest);
+        set(b, 'pointer', 'arrow')
+        
+        
+        handles.copySrcToDestButton.Enable = 'on';
+        handles.copySrcToDestButton.String = 'COPY!';
+        guidata(hObject,handles)
+        
     else
         warndlg('Try resetting the source and destination paths')
         return
@@ -168,19 +231,31 @@ else
         
 end
 
+
+
 if isequal(successfulMove,1) && strcmp(successfulCheck,'Y')
     % offer to quit
-    qANS = questdlg('All files moved! Quit?','Done','Quit','Stay','Quit');
+    qANS = questdlg('All files moved! Quit?','Done','Quit','Stay','Save Log File','Quit');
     switch qANS
         case 'Quit'
             delete(handles.figure1);
-        otherwise
-            handles.sourceDisplayBox.String = 'no source folder chosen yet';
-            handles.src = 0;
-            handles.destinationDisplayBox.String = 'no destination folder chosen yet';
-            handles.dest = 0;
-            guidata(hObject,handles)
+        case 'Save Log File'
+            logFileName = [handles.dest filesep date '_SaveLogFile.txt'];
+            fileID = fopen(logFileName,'w+');
+            logFile = splitlines(string(logFile));
+            if strcmp(logFile(end,:),"")
+                logFile(end,:)=[];
+            end
+            newLogFile = replace(logFile,filesep,'/');
+                
+                
+            
+            fprintf(fileID,'%s\r\n',newLogFile);
+            fclose(fileID);
     end
+
+    guidata(hObject,handles)
+    
 elseif isequal(successfulMove,1) && strcmp(successfulCheck,'N')
     qANS = questdlg('Files were moved, but there was an file size difference. Quit?','Done','Quit','Stay','Quit');
     switch qANS
@@ -191,6 +266,7 @@ elseif isequal(successfulMove,1) && strcmp(successfulCheck,'N')
             handles.src = 0;
             handles.destinationDisplayBox.String = 'An error occurred please reset';
             handles.dest = 0;
+            handles.firstRun.Value = 0;
             guidata(hObject,handles)
     end
 else

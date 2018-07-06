@@ -1,4 +1,4 @@
-function successfulMove = backup(or_dir,varargin)
+function [successfulMove,logFile] = backup(or_dir,varargin)
 %
 %backup(or_dir,bk_dir,warn,flags,mode)
 %
@@ -89,7 +89,7 @@ if(nargin >= 3 )
 end
 
 %Display message to make sure function was called correctly
-clc
+
 if(strcmp(mode,'xcopy'))
     try
         cd(bk_dir)
@@ -120,17 +120,16 @@ if(strcmp(mode,'xcopy'))
             successfulMove = 0;
             return
         end
-    else
-        str=['***Backing-up data FROM: \n\n',or_dir,'\n\n***TO:\n\n',bk_dir,'\n\n***'];
-        fprintf(str)
     end
     %Call XCOPY command
-    str=['!xcopy "',or_dir,'" "',bk_dir,'" ',flags];
+    str=['xcopy "',or_dir,'" "',bk_dir,'" ',flags];
+    
     tic
-    eval(str)
+    [succ,logFile] = dos(str);
+    
     t=toc;
     uiwait(msgbox(['Backup complete in ', num2str(t/60),' minutes.'],'Success','modal'));
-    successfulMove = 1;
+    successfulMove = ~succ;
 
 else %%%% In non xcopy modes
    
